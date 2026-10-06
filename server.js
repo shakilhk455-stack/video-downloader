@@ -1,48 +1,24 @@
 const express = require('express');
-const { spawn } = require('child_process');
-const path = require('path');
+const axios = require('axios');
 const app = express();
 
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
 app.post('/download', async (req, res) => {
-    const videoUrl = req.body.url;
-    
-    if (!videoUrl) {
-        return res.status(400).send("Please provide a valid video link.");
-    }
-
     try {
-        res.header('Content-Disposition', 'attachment; filename="video.mp4"');
-        res.header('Content-Type', 'video/mp4');
+        const videoUrl = req.body.url;
+        if (!videoUrl) {
+            return res.status(400).json({ error: 'Please provide a video URL' });
+        }
 
-        const ytdlp = spawn('yt-dlp', ['-o', '-', videoUrl]);
-
-        ytdlp.stdout.pipe(res);
-
-        ytdlp.stderr.on('data', (data) => {
-            console.error(`yt-dlp stderr: ${data}`);
-        });
-
-        ytdlp.on('error', (err) => {
-            console.error('Failed to start subprocess:', err);
-            if (!res.headersSent) {
-                res.status(500).send("Could not process this video link. Please verify if the post is public.");
+        const response = await axios.post('https://co.wuk.sh/api/json', {
+            url: videoUrl
+        }, {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0'
             }
         });
-
-    } catch (error) {
-        console.error('Error:', error);
-        if (!res.headersSent) {
-            res.status(500).send("Internal server error occurred.");
-        }
-    }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-const
